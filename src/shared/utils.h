@@ -1,4 +1,2 @@
-#define UARTPTR 0x4000C000;
-
-void qemu_exit() {}
-void print_string(char *s) {}
+void print_string(char *s) ;
+void num_to_string(float f, char *buffer, int precision);

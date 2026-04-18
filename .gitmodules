@@ -1,0 +1,9 @@
+[submodule "src/demo_fft/CMSIS-DSP"]
+	path = src/demo_fft/CMSIS-DSP
+	url = https://github.com/ARM-software/CMSIS-DSP.git
+[submodule "src/demo_fft/CMSIS_6"]
+	path = src/demo_fft/CMSIS_6
+	url = https://github.com/ARM-software/CMSIS_6.git
+[submodule "src/demo_aes/tiny-AES-C"]
+	path = src/demo_aes/tiny-AES-C
+	url = https://github.com/kokke/tiny-AES-C.git

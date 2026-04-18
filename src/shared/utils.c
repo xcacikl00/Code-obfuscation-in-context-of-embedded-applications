@@ -1,32 +1,63 @@
 #include <stdint.h>
 #include "utils.h"
 
-void qemu_exit()
+
+void print_string(char *s)
 {
-    // Create a parameter block in memory
-    uint32_t args[2];
-    args[0] = 0x20026; // ADP_Stopped_ApplicationExit
-    args[1] = 0;       // Exit code (0 for success)
-
-    register uint32_t reg0 __asm__("r0") = 0x18;           // angel_SWIreason_ReportException
-    register uint32_t reg1 __asm__("r1") = (uint32_t)args; // POINTER to the args
-
-    __asm__ volatile(
-        "bkpt 0xAB"
-        :
-        : "r"(reg0), "r"(reg1)
-        : "memory");
-}
-
-// (In QEMU lm3s6965evb 0x4000C000 is the UART register)
-
-
-void print_string( char *s)
-{
-    volatile unsigned int *uart = (unsigned int *)UARTPTR;
+    volatile unsigned int *uart = (unsigned int *)0x40011004;
 
     while (*s)
     {
         *uart = *s++;
     }
 }
+
+void num_to_string(float num, char *buffer, int precision)
+{
+    char *ptr = buffer;
+
+    if (num < 0)
+    {
+        *ptr++ = '-';
+        num = -num;
+    }
+
+    int integer_part = (int)num;
+    float fractional_part = num - (float)integer_part;
+
+    char reverse_buffer[12];
+    int i = 0;
+    if (integer_part == 0)
+    {
+        reverse_buffer[i++] = '0';
+    }
+    else
+    {
+        while (integer_part > 0)
+        {
+            reverse_buffer[i++] = (integer_part % 10) + '0';
+            integer_part /= 10;
+        }
+    }
+
+    while (i > 0)
+    {
+        *ptr++ = reverse_buffer[--i];
+    }
+
+    if (precision > 0)
+    {
+        *ptr++ = '.';
+
+        while (precision--)
+        {
+            fractional_part *= 10.0f;
+            int digit = (int)fractional_part;
+            *ptr++ = digit + '0';
+            fractional_part -= (float)digit;
+        }
+    }
+
+    *ptr = '\0';
+}
+
