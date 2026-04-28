@@ -7,3 +7,18 @@
 [submodule "src/demo_aes/tiny-AES-C"]
 	path = src/demo_aes/tiny-AES-C
 	url = https://github.com/kokke/tiny-AES-C.git
+[submodule "obfuscation_detection/dataset/source/CMSIS-NN"]
+	path = obfuscation_detection/dataset/source/CMSIS-NN
+	url = https://github.com/ARM-software/CMSIS-NN
+[submodule "obfuscation_detection/CMSIS_6"]
+	path = obfuscation_detection/CMSIS_6
+	url = https://github.com/ARM-software/CMSIS_6
+[submodule "obfuscation_detection/dataset/source/CMSIS_6"]
+	path = obfuscation_detection/dataset/source/CMSIS_6
+	url = https://github.com/ARM-software/CMSIS_6
+[submodule "obfuscation_detection/dataset/source/mbedtls"]
+	path = obfuscation_detection/dataset/source/mbedtls
+	url = https://github.com/Mbed-TLS/mbedtls
+[submodule "obfuscation_detection/dataset/source/mibench"]
+	path = obfuscation_detection/dataset/source/mibench
+	url = https://github.com/embecosm/mibench

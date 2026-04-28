@@ -8,3 +8,10 @@ CMakeFiles/
 Makefile
 makefile
 *.cmake
+dataset/clean
+dataset/obfuscated
+venv
+*test*
+*.a
+*temp*
+*.npz
