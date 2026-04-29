@@ -1,0 +1,24 @@
+cmake_minimum_required(VERSION 3.10)
+project(mbedtls_harness_gen C)
+
+# 1. SET ARM CORTEX-M4 TARGET FLAGS
+# These must be set before any targets to ensure mbedTLS inherits them
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --target=arm-none-eabi -mcpu=cortex-m4 -mthumb")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mfloat-abi=hard -nostdlib")
+
+# 2. CONFIGURE MBEDTLS OPTIONS
+# Disable testing/programs to speed up your dataset generation
+set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+set(ENABLE_PROGRAMS OFF CACHE BOOL "" FORCE)
+set(INSTALL_MBEDTLS_HEADERS ON CACHE BOOL "" FORCE)
+
+# 3. ADD MBEDTLS SOURCE
+add_subdirectory(mbedtls)
+
+# 4. DEFINE THE HARNESS TARGET
+# The 'HARNESS_FILE' variable will be passed by your Python script
+add_executable(harness_bin ${HARNESS_FILE})
+
+# 5. LINKING
+# Linking here triggers the compilation of mbedTLS source with your flags
+target_link_libraries(harness_bin mbedcrypto mbedx509 mbedtls)

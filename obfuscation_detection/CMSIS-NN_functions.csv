@@ -4,7 +4,6 @@ arm_concatenation_s8_w
 arm_convolve_1_x_n_s8
 arm_convolve_1x1_s8_fast
 arm_convolve_s16
-arm_convolve_wrapper_s16
 arm_depthwise_conv_3x3_s8
 arm_depthwise_conv_fast_s16
 arm_depthwise_conv_s16
