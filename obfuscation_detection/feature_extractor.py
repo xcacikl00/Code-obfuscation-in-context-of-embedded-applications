@@ -13,6 +13,7 @@ from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_sc
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 import xgboost as xgb
+import os
 
 
 OUTPUT_CLEAN = "./dataset/clean"
@@ -88,8 +89,16 @@ def get_graph_features(binary_path):
     max_in_degree = max(in_degrees.values()) if in_degrees.__len__() > 0 else 0
 
     
-    
-    total_instructions = sum(  node.block.instructions if node.block else 0  for node in cfg.graph.nodes())
+        
+    total_instructions = 0
+    for node in cfg.graph.nodes():
+        try:
+            if node.block and node.block.size > 0:
+                total_instructions += node.block.instructions
+        except (angr.errors.SimTranslationError):
+            print(f"Error processing binary {binary_path}")
+            # skip blocks that cannot be processed
+            continue
     mean_bb_instructions = total_instructions / num_nodes
     edge_to_node_ratio = num_edges / num_nodes
     
@@ -179,7 +188,8 @@ def extract_features_by_prefix(prefix, output_clean="./dataset/clean", output_ob
     obf_files = list(obf_path.glob(f"{prefix}*"))
     
     all_files = clean_files + obf_files
-    
+    print("="*40)
+
     if not all_files:
         print(f"no files found with {prefix} prefix")
         return
@@ -199,12 +209,15 @@ def extract_features_by_prefix(prefix, output_clean="./dataset/clean", output_ob
         print(f" max in degree: {graph_features[1]}")
         print(f" Mean basic block instructions: {graph_features[2]:.4f}")
         print(f" edge to node ratio: {graph_features[3]:.4f}")
+        print("="*40)
         
 
 
 
 
 if __name__ == "__main__":
+    os.chdir(Path(__file__).resolve().parent)
+
 
     VECTOR_FILE = "./final_vector.npz"
     
@@ -260,8 +273,8 @@ if __name__ == "__main__":
     scaled_features = scaler.fit_transform(final_vector)
     print("final feature vector dimensions:", scaled_features.shape)
     
-    # extract_features_by_prefix("arm_avgpool_s16", OUTPUT_CLEAN, OUTPUT_OBFUSCATED)
-    
+    extract_features_by_prefix("basic_math_large", OUTPUT_CLEAN, OUTPUT_OBFUSCATED)
+
 
     print("MODEL TRAINING AND EVALUATION")
 

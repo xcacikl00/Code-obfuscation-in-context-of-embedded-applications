@@ -11,8 +11,8 @@ makefile
 dataset/clean
 dataset/obfuscated
 venv
-*test*
+test
 *.a
-*temp*
+temp
 *.npz
 libraries/*

@@ -36,6 +36,7 @@ COMMON_FLAGS = [
     "-DARM_MATH_DSP",
     "-fuse-ld=lld",
     "-lgcc",
+    "-lnosys",
     "-L/usr/lib/gcc/arm-none-eabi/13.2.1/thumb/v7e-m+fp/hard",
     "-fpass-plugin=/home/gammut/obfuscator-llvm/build/libLLVMObfuscator.so", # test
     
@@ -50,6 +51,7 @@ import subprocess
 import json
 import re
 import shutil
+import glob
 from pathlib import Path
 os.chdir(Path(__file__).resolve().parent)
 
@@ -82,6 +84,7 @@ def compile_function(func_name, opt_flag, pass_flag, library_path):
     output_path = os.path.join(output_dir, output_name)
     
     if  os.path.exists(output_path): # already compiled
+        os.remove(skeleton_path)
         return
     
     os.makedirs(output_dir, exist_ok=True)
@@ -225,7 +228,7 @@ def get_output_name(func_name, opt_flag, pass_flag):
     
 
 
-def compile_source(functions_list, source_path, library_name="CMSIS-NN", lib_output_dir="./libraries"):
+def compile_source(functions_list, source_path, lib_output_dir="./libraries"):
     """
     Compile harness files for given functions against pre-built libraries.
     First builds static libraries for all expected optimization/obfuscation flag combinations,
@@ -239,9 +242,43 @@ def compile_source(functions_list, source_path, library_name="CMSIS-NN", lib_out
     """
     # get compilation info from source cmake
     # assumes file is present in /build
-    source_commands = get_commands_for_source(source_path)
-    source_files = source_commands['sources']
-    include_flags = source_commands['includes']
+    
+    source_files = []
+    include_flags = []
+
+    try:
+        source_commands = get_commands_for_source(source_path)
+        
+
+    except FileNotFoundError:
+        source_commands = None
+        
+        
+    
+    if source_commands:
+        source_files = source_commands['sources']
+        include_flags = source_commands['includes']
+        
+    else:
+        exclude_dirs = {'test', 'tests', 'doc', 'docs', 'example', 'examples', 'externals', 'build', "tools"}
+
+        search_pattern = os.path.join(source_path, "**", "*.c")
+        
+        source_files = []
+        for f in glob.glob(search_pattern, recursive=True):
+            abs_path = os.path.abspath(f)
+            path_parts = set(abs_path.lower().split(os.sep))
+            if not (path_parts & exclude_dirs): # set instersection
+                source_files.append(abs_path)
+
+        include_flags = [f"-I{os.path.abspath(source_path)}"]
+        for root, dirs, files in os.walk(source_path):
+            dirs[:] = [d for d in dirs if d.lower() not in exclude_dirs]
+            for d in dirs:
+                include_flags.append(f"-I{os.path.abspath(os.path.join(root, d))}")
+    
+        
+    library_name = os.path.basename(source_path)
     
     print(f"Extracted {len(source_files)} source files and {len(include_flags)} include paths\n")
     
@@ -269,7 +306,6 @@ def compile_source(functions_list, source_path, library_name="CMSIS-NN", lib_out
     
     print(f"\nLibraries ready: {len(libraries)} variants\n")
     
-    # Compile functions against libraries
     print(f"Compiling {len(functions_list)} functions...")
     for func in functions_list:
         print(f"  {func}...")
@@ -296,6 +332,8 @@ def compile_source(functions_list, source_path, library_name="CMSIS-NN", lib_out
                 compile_function(func, opt_flag, all_passes, libraries[(opt_flag, all_passes)])
             else:
                 print(f"unexpected combination of  flags {(opt_flag, all_passes)}, library not present")
+                
+                
         
         
 
@@ -309,6 +347,16 @@ def main():
         FUNCTIONS = [line.strip() for line in f.readlines()]
     
     compile_source(FUNCTIONS, "dataset/source/CMSIS-NN")
+
+    with open("monocypher_functions.csv", "r") as f:
+        FUNCTIONS = [line.strip() for line in f.readlines()]
+    
+    compile_source(FUNCTIONS, "dataset/source/monocypher")
+    
+    FUNCTIONS = ["kiss_fft_alloc","kiss_fft","kiss_fft_stride"]
+    compile_source(FUNCTIONS, "dataset/source/kissfft")
+
+    
     
 if __name__ == "__main__":
     main()

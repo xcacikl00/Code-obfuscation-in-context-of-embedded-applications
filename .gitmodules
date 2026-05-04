@@ -22,3 +22,12 @@
 [submodule "obfuscation_detection/dataset/source/mibench"]
 	path = obfuscation_detection/dataset/source/mibench
 	url = https://github.com/embecosm/mibench
+[submodule "obfuscation_detection/dataset/source/monocypher"]
+	path = obfuscation_detection/dataset/source/monocypher
+	url = https://github.com/LoupVaillant/monocypher
+[submodule "obfuscation_detection/dataset/source/kissfft"]
+	path = obfuscation_detection/dataset/source/kissfft
+	url = https://github.com/mborgerding/kissfft
+[submodule "obfuscation_pass/llvm-test-suite"]
+	path = obfuscation_pass/llvm-test-suite
+	url = https://github.com/llvm/llvm-test-suite

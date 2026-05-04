@@ -1,0 +1,9 @@
+crypto_blake2b
+crypto_chacha20_djb
+crypto_chacha20_ietf
+crypto_chacha20_x
+crypto_poly1305
+crypto_x25519
+crypto_argon2
+crypto_verify64
+crypto_wipe
