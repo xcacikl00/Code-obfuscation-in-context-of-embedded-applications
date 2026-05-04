@@ -20,37 +20,61 @@ static bool getEnvFlag(const char *Name)
 void PassBuilderHook(PassBuilder &PB)
 {
 
-    PB.registerVectorizerStartEPCallback(
-        [](FunctionPassManager &FPM, OptimizationLevel Level)
+    PB.registerOptimizerLastEPCallback( // should be last or phis will get reintroduced into the code
+                                        // in between passes and this can cause issues
+        [](ModulePassManager &MPM, OptimizationLevel Level)
         {
-            llvm::errs() << "DEBUG: PassBuilderHook called\n";
-
-            // Check environment variables instead of CLI opts
+            FunctionPassManager FPM;
 
             bool doSubst = getEnvFlag("OBF_SUBST");
             bool doFlatten = getEnvFlag("OBF_FLATTEN");
             bool doBogus = getEnvFlag("OBF_BOGUS");
 
             if (doSubst)
-            {
-                FPM.addPass(InstructionSubstitution());
-            }
+                llvm::errs() << "REGISTER: SUBST \n";
+
+            FPM.addPass(InstructionSubstitution());
 
             if (doFlatten)
             {
-                // lower switches to ifs to simplify flattening logic
+                llvm::errs() << "REGISTER: FLATTEN \n";
+
                 FPM.addPass(LowerSwitchPass());
-                // demote registers to memory to remove PHI nodes
                 FPM.addPass(RegToMemPass());
                 FPM.addPass(Flattening());
             }
 
             if (doBogus)
             {
-                // remove PHIs for block shuffling
+                llvm::errs() << "REGISTER: BOGUS \n";
+
                 FPM.addPass(RegToMemPass());
                 FPM.addPass(Bogus(42));
             }
+
+            MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
+        });
+
+    PB.registerPipelineParsingCallback( // for opt
+        [](StringRef Name, FunctionPassManager &FPM,
+           ArrayRef<PassBuilder::PipelineElement>)
+        {
+            if (Name == "flattening")
+            {
+                FPM.addPass(Flattening());
+                return true;
+            }
+            if (Name == "bogus")
+            {
+                FPM.addPass(Bogus(42));
+                return true;
+            }
+            if (Name == "subst")
+            {
+                FPM.addPass(InstructionSubstitution());
+                return true;
+            }
+            return false;
         });
 }
 
@@ -66,7 +90,6 @@ PassPluginLibraryInfo getTestPassPluginInfo()
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo
 llvmGetPassPluginInfo()
 {
-    llvm::errs() << "DEBUG: llvmGetPassPluginInfo() called\n";
 
     return getTestPassPluginInfo();
 }

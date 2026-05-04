@@ -152,7 +152,7 @@ namespace
 
 PreservedAnalyses InstructionSubstitution::run(Function &F, FunctionAnalysisManager &AM)
 {
-    llvm::errs() << "instruction subst is running  on: " << F.getName() << "\n";
+    // llvm::errs() << "instruction subst is running  on: " << F.getName() << "\n";
     for (BasicBlock &BB : F)
     {
 

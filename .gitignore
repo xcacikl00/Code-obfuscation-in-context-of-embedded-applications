@@ -2,8 +2,6 @@
 *.o
 *.elf
 src/build
-src/demo_fft/CMSIS_6-6.3.0
-src/demo_fft/CMSIS-DSP-1.17.0
 CMakeFiles/
 Makefile
 makefile
@@ -16,3 +14,5 @@ test
 temp
 *.npz
 libraries/*
+log.txt
+build

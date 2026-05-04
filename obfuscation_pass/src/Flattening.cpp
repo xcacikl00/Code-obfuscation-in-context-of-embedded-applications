@@ -1,8 +1,3 @@
-//===-- Flattening.cpp - Control Flow Flattening Pass ---------------------===//
-//
-// Prerequisites: LowerSwitchPass, PHI demotion pass.
-//
-//===----------------------------------------------------------------------===//
 
 #include "Flattening.hpp"
 
@@ -12,14 +7,12 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Support/raw_ostream.h"
 
 #include <random>
 
 using namespace llvm;
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 static std::mt19937 &getRng()
 {
@@ -32,7 +25,7 @@ static uint32_t randRange(uint32_t Lo, uint32_t Hi)
     return std::uniform_int_distribution<uint32_t>{Lo, Hi}(getRng());
 }
 
-// Encode(id, X, Y) = (id ^ X) + Y
+// 
 static uint32_t Encode(uint32_t Id, uint32_t X, uint32_t Y)
 {
     return (Id ^ X) + Y;
@@ -83,16 +76,17 @@ static uint32_t getSwitchEnc(const DenseMap<BasicBlock *, uint32_t> &SwitchEnc,
     return It->second;
 }
 
-// ---------------------------------------------------------------------------
-// Core transformation
-// ---------------------------------------------------------------------------
 
 static bool flattenFunction(Function &F, uint32_t X, uint32_t Y)
 {
     if (F.getInstructionCount() == 0)
         return false;
 
-    // Bail out on any EH construct.
+    // if (F.getInstructionCount() > 500)
+    //     return false;
+
+    // do not flatten anything containig error handling, the logic to handle
+    // unwinding as exptected by the compiler is not implemented
     for (BasicBlock &BB : F)
     {
         if (BB.isLandingPad() || BB.isEHPad())
@@ -110,22 +104,28 @@ static bool flattenFunction(Function &F, uint32_t X, uint32_t Y)
     if (FlattedBBs.size() <= 1)
         return false;
 
-    // If the entry ends in a conditional branch, split before it so the
-    // branch logic itself gets a dispatch case.
+    // target block for the dispatcher to execute first
+    BasicBlock *InitialTarget = nullptr;
+
     if (auto *Br = dyn_cast<BranchInst>(EntryBlock->getTerminator()))
     {
         if (Br->isConditional())
         {
-            BasicBlock *EntrySplit =
-                EntryBlock->splitBasicBlockBefore(Br, "EntrySplit");
+            BasicBlock *EntrySplit = EntryBlock->splitBasicBlockBefore(Br, "EntrySplit");
             FlattedBBs.insert(FlattedBBs.begin(), EntryBlock);
             EntryBlock = EntrySplit;
+            InitialTarget = FlattedBBs[0];
+        }
+        else
+        {
+            // capture successor before deleting branch
+            InitialTarget = Br->getSuccessor(0);
         }
     }
 
     EntryBlock->getTerminator()->eraseFromParent();
 
-    // Assign each block a unique random plain ID; case constant = Encode(id, X, Y).
+    // assing each block a unique random ID
     DenseMap<BasicBlock *, uint32_t> SwitchEnc;
     SmallSet<uint32_t, 30> UsedRnd;
     for (BasicBlock *BB : FlattedBBs)
@@ -156,7 +156,7 @@ static bool flattenFunction(Function &F, uint32_t X, uint32_t Y)
     AllocaInst *TmpTrue = EntryIR.CreateAlloca(EntryIR.getInt32Ty(), 0, "TmpTrue");
     AllocaInst *TmpFalse = EntryIR.CreateAlloca(EntryIR.getInt32Ty(), 0, "TmpFalse");
     EntryIR.CreateStore(
-        EntryIR.getInt32(Encode(getSwitchEnc(SwitchEnc, FlattedBBs[0]), X, Y)),
+        EntryIR.getInt32(Encode(getSwitchEnc(SwitchEnc, InitialTarget), X, Y)),
         SwitchVar);
     EntryIR.CreateBr(FlatLoopEntry);
 
@@ -179,7 +179,7 @@ static bool flattenFunction(Function &F, uint32_t X, uint32_t Y)
             BB);
     }
 
-    // Rewrite terminators.
+    // rewrite terminators.
     for (BasicBlock *BB : FlattedBBs)
     {
         Instruction *Term = BB->getTerminator();
@@ -212,9 +212,6 @@ static bool flattenFunction(Function &F, uint32_t X, uint32_t Y)
     return true;
 }
 
-// ---------------------------------------------------------------------------
-// Pass entry point
-// ---------------------------------------------------------------------------
 
 PreservedAnalyses Flattening::run(Function &F, FunctionAnalysisManager &AM)
 {
@@ -223,9 +220,9 @@ PreservedAnalyses Flattening::run(Function &F, FunctionAnalysisManager &AM)
 
     const uint32_t X = randRange(10, 254);
     const uint32_t Y = randRange(10, 254);
-     llvm::errs() << "flattening is running  on: " << F.getName() << "\n";
-
+    //  llvm::errs() << "flattening is running  on: " << F.getName() << "\n";
 
     bool Changed = flattenFunction(F, X, Y);
+
     return Changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
 }
