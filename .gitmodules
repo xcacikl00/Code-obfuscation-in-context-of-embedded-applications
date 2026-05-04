@@ -23,3 +23,12 @@
 [submodule "obfuscation_pass/llvm-test-suite"]
 	path = obfuscation_pass/llvm-test-suite
 	url = https://github.com/llvm/llvm-test-suite
+[submodule "demos/demo_aes/tiny-AES-C"]
+	path = demos/demo_aes/tiny-AES-C
+	url = https://github.com/kokke/tiny-AES-C
+[submodule "demos/demo_fft/CMSIS-DSP"]
+	path = demos/demo_fft/CMSIS-DSP
+	url = https://github.com/ARM-software/CMSIS-DSP
+[submodule "demos/demo_fft/CMSIS_6"]
+	path = demos/demo_fft/CMSIS_6
+	url = https://github.com/ARM-software/CMSIS_6
