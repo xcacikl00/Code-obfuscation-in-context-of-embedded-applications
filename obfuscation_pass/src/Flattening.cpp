@@ -8,11 +8,11 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Support/raw_ostream.h"
-
+#include <llvm/IR/Verifier.h>
+#include "llvm/Transforms/Utils/Local.h"
 #include <random>
 
 using namespace llvm;
-
 
 static std::mt19937 &getRng()
 {
@@ -25,7 +25,7 @@ static uint32_t randRange(uint32_t Lo, uint32_t Hi)
     return std::uniform_int_distribution<uint32_t>{Lo, Hi}(getRng());
 }
 
-// 
+//
 static uint32_t Encode(uint32_t Id, uint32_t X, uint32_t Y)
 {
     return (Id ^ X) + Y;
@@ -76,7 +76,6 @@ static uint32_t getSwitchEnc(const DenseMap<BasicBlock *, uint32_t> &SwitchEnc,
     return It->second;
 }
 
-
 static bool flattenFunction(Function &F, uint32_t X, uint32_t Y)
 {
     if (F.getInstructionCount() == 0)
@@ -106,6 +105,18 @@ static bool flattenFunction(Function &F, uint32_t X, uint32_t Y)
 
     // target block for the dispatcher to execute first
     BasicBlock *InitialTarget = nullptr;
+
+    // defensively demote all phis, the reg2mem pass should catch them
+    // however when compiling cmsis DSP there were malformed phis after the pass which
+    // caused the compilation to file even when reg2meme was  ran beforehand
+    for (BasicBlock &BB : F)
+    {
+        SmallVector<PHINode *, 4> PHIs;
+        for (PHINode &Phi : BB.phis())
+            PHIs.push_back(&Phi);
+        for (PHINode *Phi : PHIs)
+            DemotePHIToStack(Phi);
+    }
 
     if (auto *Br = dyn_cast<BranchInst>(EntryBlock->getTerminator()))
     {
@@ -212,7 +223,6 @@ static bool flattenFunction(Function &F, uint32_t X, uint32_t Y)
     return true;
 }
 
-
 PreservedAnalyses Flattening::run(Function &F, FunctionAnalysisManager &AM)
 {
     if (F.isDeclaration() || F.isIntrinsic())
@@ -223,6 +233,11 @@ PreservedAnalyses Flattening::run(Function &F, FunctionAnalysisManager &AM)
     //  llvm::errs() << "flattening is running  on: " << F.getName() << "\n";
 
     bool Changed = flattenFunction(F, X, Y);
+
+    if (verifyFunction(F, &errs()))
+    {
+        report_fatal_error("Obfuscation pass produced invalid IR!");
+    }
 
     return Changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
 }

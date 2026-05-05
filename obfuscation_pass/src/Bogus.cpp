@@ -6,6 +6,8 @@
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include <random>
+#include <llvm/IR/Verifier.h>
+#include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
 
 // injects incrementing of global variable to the start of the function to impede dynamic analysis
@@ -124,11 +126,9 @@ namespace
         // redirect junk to real
         junkBB->getTerminator()->eraseFromParent();
         BranchInst::Create(tailBB, junkBB);
-
     }
 
 }
-
 
 PreservedAnalyses Bogus::run(Function &F, FunctionAnalysisManager &AM)
 {
@@ -151,8 +151,8 @@ PreservedAnalyses Bogus::run(Function &F, FunctionAnalysisManager &AM)
         if (&BB == &F.getEntryBlock())
             continue;
 
-        //  skip Landing Pads (Exception Handling start)
-        if (BB.isLandingPad())
+        //  skip pads
+        if (BB.isLandingPad() || BB.isEHPad())
             continue;
 
         //  skip blocks with Invoke terminators
@@ -161,6 +161,18 @@ PreservedAnalyses Bogus::run(Function &F, FunctionAnalysisManager &AM)
 
         // these are used for exception handling, the logic to properly split these blocks is not implemented, target other blocks instead
         TargetBlocks.push_back(&BB);
+    }
+    // defensively demote all phis, the reg2mem pass should catch them
+    // however when compiling cmsis DSP there were malformed phis after the pass which
+    // caused the compilation to file even when reg2meme was  ran beforehand
+
+    for (BasicBlock &BB : F)
+    {
+        SmallVector<PHINode *, 4> PHIs;
+        for (PHINode &Phi : BB.phis())
+            PHIs.push_back(&Phi);
+        for (PHINode *Phi : PHIs)
+            DemotePHIToStack(Phi);
     }
 
     for (BasicBlock *BB : TargetBlocks)
@@ -173,6 +185,11 @@ PreservedAnalyses Bogus::run(Function &F, FunctionAnalysisManager &AM)
 
             applyBCF(BB, predicate_global);
         }
+    }
+
+    if (verifyFunction(F, &errs()))
+    {
+        report_fatal_error("Obfuscation pass produced invalid IR!");
     }
 
     return PreservedAnalyses::none();

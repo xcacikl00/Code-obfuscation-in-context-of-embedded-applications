@@ -8,8 +8,8 @@ PLUGIN="$SCRIPT_DIR/build/libObfuscator.so"
 STATE_FILE="$BUILD/.last_cmake_state"
 
 export OBF_FLATTEN=${OBF_FLATTEN:-1}
-export OBF_BOGUS=${OBF_BOGUS:-0}
-export OBF_SUBST=${OBF_SUBST:-0}
+export OBF_BOGUS=${OBF_BOGUS:-1}
+export OBF_SUBST=${OBF_SUBST:-1}
 
 # build the plugin first
 cmake -S "$SCRIPT_DIR" -B "$SCRIPT_DIR/build"

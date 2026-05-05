@@ -1,7 +1,6 @@
 .vscode/
 *.o
 *.elf
-src/build
 CMakeFiles/
 Makefile
 makefile
@@ -14,5 +13,7 @@ test
 temp
 *.npz
 libraries/*
-log.txt
-build
+*log*
+build/
+CMakeFiles
+CMakeCache.txt
