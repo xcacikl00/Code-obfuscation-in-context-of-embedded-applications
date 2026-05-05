@@ -39,7 +39,6 @@ void PassBuilderHook(PassBuilder &PB)
             {
                 llvm::errs() << "REGISTER: FLATTEN \n";
 
-                FPM.addPass(LowerSwitchPass());
                 FPM.addPass(RegToMemPass());
                 FPM.addPass(Flattening());
             }

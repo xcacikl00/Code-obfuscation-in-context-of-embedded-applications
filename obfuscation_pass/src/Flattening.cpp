@@ -1,6 +1,5 @@
 
 #include "Flattening.hpp"
-
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/IR/Constants.h"
@@ -11,6 +10,7 @@
 #include <llvm/IR/Verifier.h>
 #include "llvm/Transforms/Utils/Local.h"
 #include <random>
+#include "llvm/Transforms/Utils/LowerSwitch.h"
 
 using namespace llvm;
 
@@ -81,8 +81,6 @@ static bool flattenFunction(Function &F, uint32_t X, uint32_t Y)
     if (F.getInstructionCount() == 0)
         return false;
 
-    // if (F.getInstructionCount() > 500)
-    //     return false;
 
     // do not flatten anything containig error handling, the logic to handle
     // unwinding as exptected by the compiler is not implemented
@@ -92,6 +90,55 @@ static bool flattenFunction(Function &F, uint32_t X, uint32_t Y)
             return false;
         if (isa<InvokeInst>(BB.getTerminator()))
             return false;
+    }
+
+    for (BasicBlock &BB : F)
+    {
+        SmallVector<PHINode *, 4> PHIs;
+        for (PHINode &Phi : BB.phis())
+            PHIs.push_back(&Phi);
+        for (PHINode *Phi : PHIs)
+            DemotePHIToStack(Phi);
+    }
+
+    // make sure that lowerSwitch executed
+    for (BasicBlock &BB : F)
+    {
+        if (auto *SI = dyn_cast<SwitchInst>(BB.getTerminator()))
+        {
+        // found a switch instruction these should never be here
+        llvm::errs() << "@@@@@@@@@ FOUND SWITCH INSTRUCTION @@@@@@@@@";
+            throw 1;
+        }
+    }
+
+    // running the lower switch pass causes dominance issues,
+    // demote any such cases
+    for (BasicBlock &BB : F)
+    {
+        SmallVector<Instruction *, 16> ToDemote;
+        for (Instruction &I : BB)
+        {
+            // Skip Phis (already handled) and allocas
+            if (isa<PHINode>(I) || isa<AllocaInst>(I) || I.isTerminator())
+                continue;
+
+            for (User *U : I.users())
+            {
+                if (auto *UI = dyn_cast<Instruction>(U))
+                {
+                    if (UI->getParent() != &BB)
+                    {
+                        ToDemote.push_back(&I);
+                        break;
+                    }
+                }
+            }
+        }
+        for (Instruction *I : ToDemote)
+        {
+            DemoteRegToStack(*I);
+        }
     }
 
     BasicBlock *EntryBlock = &F.getEntryBlock();
@@ -109,14 +156,6 @@ static bool flattenFunction(Function &F, uint32_t X, uint32_t Y)
     // defensively demote all phis, the reg2mem pass should catch them
     // however when compiling cmsis DSP there were malformed phis after the pass which
     // caused the compilation to file even when reg2meme was  ran beforehand
-    for (BasicBlock &BB : F)
-    {
-        SmallVector<PHINode *, 4> PHIs;
-        for (PHINode &Phi : BB.phis())
-            PHIs.push_back(&Phi);
-        for (PHINode *Phi : PHIs)
-            DemotePHIToStack(Phi);
-    }
 
     if (auto *Br = dyn_cast<BranchInst>(EntryBlock->getTerminator()))
     {
@@ -232,8 +271,11 @@ PreservedAnalyses Flattening::run(Function &F, FunctionAnalysisManager &AM)
     const uint32_t Y = randRange(10, 254);
     //  llvm::errs() << "flattening is running  on: " << F.getName() << "\n";
 
-    bool Changed = flattenFunction(F, X, Y);
+    LowerSwitchPass LSP;
+    LSP.run(F, AM);
 
+    bool Changed = flattenFunction(F, X, Y);
+    Changed = true;
     if (verifyFunction(F, &errs()))
     {
         report_fatal_error("Obfuscation pass produced invalid IR!");
