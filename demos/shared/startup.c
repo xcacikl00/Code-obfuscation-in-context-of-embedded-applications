@@ -56,17 +56,18 @@ void Reset_Handler(void)
 
     main();
     while (1)
-        ;
+    {
+    }
 }
 
 __attribute__((section(".vector_table")))
 const void *vectors[] = {
-    &_stack_top,        
-    Reset_Handler,      
-    0,                  
-    HardFault_Handler,  
-    MemManage_Handler,  
-    BusFault_Handler,   
-    UsageFault_Handler, 
+    &_stack_top,
+    Reset_Handler,
+    0,
+    HardFault_Handler,
+    MemManage_Handler,
+    BusFault_Handler,
+    UsageFault_Handler,
 
 };

@@ -1,5 +1,9 @@
 
 #include <utils.h>
+#include <stdint.h>
+
+
+
 
 // 1. Struct representing the state of the controller
 typedef struct
@@ -39,7 +43,7 @@ float pid_compute(PID_Controller *pid, float measured_value)
         pid->integral = 50.0f;
     if (pid->integral < -50.0f)
         pid->integral = -50.0f;
-        
+
     float i_out = pid->Ki * pid->integral;
 
     float derivative = error - pid->prev_error;
@@ -57,7 +61,7 @@ float pid_compute(PID_Controller *pid, float measured_value)
     return output;
 }
 
-int main(void)
+void pid(void)
 {
     PID_Controller controller = {
         .Kp = 3.5f,
@@ -78,22 +82,28 @@ int main(void)
         current_sensor_value = simulate_sensor(current_sensor_value, control_signal);
         control_signal = pid_compute(&controller, current_sensor_value);
 
-        print_string("step ");
-        char s_buf[20];
 
-        num_to_string(i, s_buf, 2);
-        print_string(s_buf);
-
-        print_string(" sensor: ");
-        num_to_string(current_sensor_value, s_buf, 2);
-        print_string(s_buf);
-
-        print_string(" output: ");
-        num_to_string(control_signal, s_buf, 2);
-        print_string(s_buf);
-
-        print_string("\n");
     }
+}
 
-    return 0;
+volatile uint32_t benchmark_result = 0;
+
+int main()
+{
+
+
+    reset_cycle_counter();
+    uint32_t start = get_cycles();
+
+    pid();
+
+    uint32_t end = get_cycles();
+
+    benchmark_result = end - start;
+
+
+    while (1)
+    {
+
+    }
 }

@@ -61,3 +61,33 @@ void num_to_string(float num, char *buffer, int precision)
     *ptr = '\0';
 }
 
+#define DWT_CONTROL (*((volatile uint32_t *)0xE0001000))
+#define DWT_CYCCNT (*((volatile uint32_t *)0xE0001004))
+#define DEMCR (*((volatile uint32_t *)0xE000EDFC))
+#define DEMCR_TRCENA (1 << 24)
+
+
+#define RCC_BASE      0x40023800
+#define RCC_AHB1ENR   (*(volatile uint32_t *)(RCC_BASE + 0x30))
+
+#define GPIOC_BASE    0x40020800
+#define GPIOC_MODER   (*(volatile uint32_t *)(GPIOC_BASE + 0x00))
+#define GPIOC_ODR     (*(volatile uint32_t *)(GPIOC_BASE + 0x14))
+
+void delay(void) {
+    for (volatile int i = 0; i < 500000; i++); 
+}
+
+
+void reset_cycle_counter()
+{
+    DEMCR |= DEMCR_TRCENA; // Enable trace/debug unit
+    DWT_CYCCNT = 0;        // Reset count to 0
+    DWT_CONTROL |= 1;      // Enable cycle counter
+}
+
+uint32_t get_cycles()
+{
+    return DWT_CYCCNT;
+}
+
