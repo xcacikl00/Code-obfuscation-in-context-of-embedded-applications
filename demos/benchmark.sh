@@ -12,7 +12,6 @@ DEMOS=(
 CURRENT_PLUGIN=$(grep "PLUGIN_PATH:" build/CMakeCache.txt | cut -d'=' -f2)
 echo "Path: $CURRENT_PLUGIN"
 
-echo "Target Device: STM32F411 (Black Pill)" | tee -a $LOG_FILE
 
 for ENTRY in "${DEMOS[@]}"; do
     NAME="${ENTRY%%|*}"
@@ -39,8 +38,8 @@ for ENTRY in "${DEMOS[@]}"; do
     "$PROGRAMMER" -c port=SWD -w "$ELF_PATH" -v -rst > /dev/null 2>&1
 
     # wait for the program to run 
-    echo "  Executing (2s)..."
-    sleep 2
+    echo "  Executing (0.5s)..."
+    sleep 0.5
 
     # read memory
     RESULT=$("$PROGRAMMER" -c port=SWD mode=Hotplug -r32 "$ADDR" 1)
@@ -56,4 +55,3 @@ for ENTRY in "${DEMOS[@]}"; do
 done
 
 echo "------------------------------------------------" | tee -a $LOG_FILE
-echo "Benchmark Complete." | tee -a $LOG_FILE

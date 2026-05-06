@@ -2,9 +2,7 @@
 #include <utils.h>
 #include <stdint.h>
 
-
 volatile uint32_t benchmark_result = 0;
-
 
 // 1. Struct representing the state of the controller
 typedef struct
@@ -82,31 +80,27 @@ void pid(void)
     {
         current_sensor_value = simulate_sensor(current_sensor_value, control_signal);
         control_signal = pid_compute(&controller, current_sensor_value);
-
-
     }
-    volatile float  test = current_sensor_value;
+    volatile float test = current_sensor_value;
     benchmark_result = (uint32_t)control_signal; // force compiler to execute the function
-
 }
-
 
 int main()
 {
 
-
     reset_cycle_counter();
     uint32_t start = get_cycles();
 
-    pid();
+    for (int i = 0; i < 10; i++)
+    {
+        pid();
+    }
 
     uint32_t end = get_cycles();
 
     benchmark_result = end - start;
 
-
     while (1)
     {
-
     }
 }

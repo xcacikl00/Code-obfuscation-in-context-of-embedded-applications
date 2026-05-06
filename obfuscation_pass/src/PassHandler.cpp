@@ -7,6 +7,7 @@
 #include "Flattening.hpp"
 #include "Bogus.hpp"
 #include <cstdlib> // std::getenv
+#include "stdint.h"
 
 using namespace llvm;
 
@@ -27,6 +28,14 @@ void PassBuilderHook(PassBuilder &PB)
             bool doFlatten = getEnvFlag("OBF_FLATTEN");
             bool doBogus = getEnvFlag("OBF_BOGUS");
             bool debug_print = getEnvFlag("OBF_DEBUG");
+            char *seed_string = std::getenv("OBF_SEED");
+            unsigned long long seed = 0xABCDBCDAABCDBCDA; // default
+            char *endPtr;
+            if (seed_string)
+            {
+                seed = std::strtoull(seed_string,&endPtr,16);
+                
+            }
 
             if (doSubst)
             {
@@ -51,10 +60,13 @@ void PassBuilderHook(PassBuilder &PB)
             {
                 if (debug_print)
                 {
+                    
                     llvm::errs() << "REGISTER: BOGUS \n";
+                    llvm::errs() << "USING SEED: "<< format_hex(seed, 16, true) <<"\n";
                 }
+
                 FPM.addPass(RegToMemPass());
-                FPM.addPass(Bogus(42));
+                FPM.addPass(Bogus(seed));
             }
         });
 

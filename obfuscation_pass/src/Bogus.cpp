@@ -132,7 +132,7 @@ PreservedAnalyses Bogus::run(Function &F, FunctionAnalysisManager &AM)
     // mix the seed with the function hash to ensure different functions
     // get different obfuscation patterns even with the same global seed.
     std::mt19937 engine(Seed ^ F.getGUID());
-    std::bernoulli_distribution dist(0.75); // 50% probability
+    std::bernoulli_distribution dist(0.30); // 30% probability
 
     Value *predicate_global = nullptr;
 
