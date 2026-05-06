@@ -34,4 +34,4 @@
 	url = https://github.com/ARM-software/CMSIS_6
 [submodule "obfuscation_pass/obfuscator-llvm"]
 	path = obfuscation_pass/obfuscator-llvm
-	url = https://github.com/eshard/obfuscator-llvm
+	url = https://github.com/xcacikl00/obfuscator-llvm
