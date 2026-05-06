@@ -278,18 +278,13 @@ if __name__ == "__main__":
 
     print("MODEL TRAINING AND EVALUATION")
 
-    
-    # partitioning at function level (70% train, 15% val, 15% test)
+
+    # --- partitioning at function level (70% train, 15% val, 15% test) 
     X_train, X_val, X_test, y_train, y_val, y_test, train_funcs, val_funcs, test_funcs = split_by_source_function(
         binary_paths, final_labels, scaled_features, test_size=0.15, val_size=0.15, seed=42
     )
-    
-    print("\ndataset partitioning:")
-    print(f"training split functions: {len(train_funcs)} unique functions, {len(X_train)} binary variants ({len(X_train)/len(scaled_features)*100:.1f}%)")
-    print(f"validation split functions: {len(val_funcs)} unique functions, {len(X_val)} binary variants ({len(X_val)/len(scaled_features)*100:.1f}%)")
-    print(f"test split functions: {len(test_funcs)} unique functions, {len(X_test)} binary variants ({len(X_test)/len(scaled_features)*100:.1f}%)")
-    print(f"\n total unique functions: {len(train_funcs) + len(val_funcs) + len(test_funcs)}")
-    print(f" total samples: {len(X_train) + len(X_val) + len(X_test)}")
+
+
     
     rf_param_grid = {
         'n_estimators': [100, 200, 500],
@@ -301,42 +296,40 @@ if __name__ == "__main__":
         'gamma': [0, 0.1, 0.2]
     } 
 
-    #5 rf fold grid search params
-    #todo use training protocol and regulazations settings
-    rf_model = RandomForestClassifier(random_state=42) 
+
+    print("\ndataset partitioning:")
+    print(f"training split functions: {len(train_funcs)} unique functions, {len(X_train)} binary variants ({len(X_train)/len(scaled_features)*100:.1f}%)")
+    print(f"validation split functions: {len(val_funcs)} unique functions, {len(X_val)} binary variants ({len(X_val)/len(scaled_features)*100:.1f}%)")
+    print(f"test split functions: {len(test_funcs)} unique functions, {len(X_test)} binary variants ({len(X_test)/len(scaled_features)*100:.1f}%)")
+    print(f"\n total unique functions: {len(train_funcs) + len(val_funcs) + len(test_funcs)}")
+    print(f" total samples: {len(X_train) + len(X_val) + len(X_test)}")
+    
+    rf_model = RandomForestClassifier(
+        max_depth=15, 
+        min_samples_leaf=5, 
+        random_state=42
+    )
+
     rf_grid_search = GridSearchCV(
         rf_model, rf_param_grid, cv=StratifiedKFold(n_splits=5, shuffle=True, random_state=42),
         n_jobs=-1, verbose=1, scoring='accuracy'
     )
-    
     rf_grid_search.fit(X_train, y_train)
-    
-    print(f"\nBest Random Forest Parameters: {rf_grid_search.best_params_}")
-    print(f"Best Cross-Validation Score (5-Fold): {rf_grid_search.best_score_:.4f}")
-    
-    #  evaluate on all sets
-    rf_train_score = rf_grid_search.score(X_train, y_train)
-    rf_val_score = rf_grid_search.score(X_val, y_val)
-    rf_test_score = rf_grid_search.score(X_test, y_test)
-    
-    print("\nRF performance:\n")
-    print(f"training accuracy: {rf_train_score:.4f}")
-    print(f"validation accuracy: {rf_val_score:.4f}")
-    print(f"test accuracy: {rf_test_score:.4f}")
-    
-    y_pred_rf = rf_grid_search.predict(X_test)
-    print(f"\n RF report:")
-    print(classification_report(y_test, y_pred_rf, target_names=['Clean', 'Obfuscated']))
-    
-    #xgboost grid search params    
-    xgb_model = xgb.XGBClassifier(random_state=42, eval_metric='logloss')
+
+    xgb_model = xgb.XGBClassifier(
+        random_state=42, 
+        eval_metric='logloss',
+        reg_lambda=1.0,           # l2 regularization
+    )
+
     xgb_grid_search = GridSearchCV(
         xgb_model, xgb_param_grid, cv=StratifiedKFold(n_splits=5, shuffle=True, random_state=42),
         n_jobs=-1, verbose=1, scoring='accuracy'
     )
-    
+
     xgb_grid_search.fit(X_train, y_train)
-    
+
+            
     # xboost eval
     xgb_train_score = xgb_grid_search.score(X_train, y_train)
     xgb_val_score = xgb_grid_search.score(X_val, y_val)
