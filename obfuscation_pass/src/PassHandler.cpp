@@ -20,38 +20,42 @@ static bool getEnvFlag(const char *Name)
 void PassBuilderHook(PassBuilder &PB)
 {
 
-    PB.registerOptimizerLastEPCallback( // should be last or phis will get reintroduced into the code
-                                        // in between passes and this can cause issues
-        [](ModulePassManager &MPM, OptimizationLevel Level)
+    PB.registerScalarOptimizerLateEPCallback(
+        [](FunctionPassManager &FPM, OptimizationLevel Level)
         {
-            FunctionPassManager FPM;
-
             bool doSubst = getEnvFlag("OBF_SUBST");
             bool doFlatten = getEnvFlag("OBF_FLATTEN");
             bool doBogus = getEnvFlag("OBF_BOGUS");
+            bool debug_print = getEnvFlag("OBF_DEBUG");
 
             if (doSubst)
-                llvm::errs() << "REGISTER: SUBST \n";
-
-            FPM.addPass(InstructionSubstitution());
+            {
+                if (debug_print)
+                {
+                    llvm::errs() << "REGISTER: SUBSTITUTION \n";
+                }
+                FPM.addPass(InstructionSubstitution());
+            }
 
             if (doFlatten)
             {
-                llvm::errs() << "REGISTER: FLATTEN \n";
-
-                FPM.addPass(RegToMemPass());
+                if (debug_print)
+                {
+                    llvm::errs() << "REGISTER: FLATTENING \n";
+                }
+                FPM.addPass(RegToMemPass()); // reg2mem pass could probably be removed
                 FPM.addPass(Flattening());
             }
 
             if (doBogus)
             {
-                llvm::errs() << "REGISTER: BOGUS \n";
-
+                if (debug_print)
+                {
+                    llvm::errs() << "REGISTER: BOGUS \n";
+                }
                 FPM.addPass(RegToMemPass());
                 FPM.addPass(Bogus(42));
             }
-
-            MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
         });
 
     PB.registerPipelineParsingCallback( // for opt
@@ -65,11 +69,13 @@ void PassBuilderHook(PassBuilder &PB)
             }
             if (Name == "bogus")
             {
+                FPM.addPass(RegToMemPass());
                 FPM.addPass(Bogus(42));
                 return true;
             }
             if (Name == "subst")
             {
+                FPM.addPass(RegToMemPass());
                 FPM.addPass(InstructionSubstitution());
                 return true;
             }

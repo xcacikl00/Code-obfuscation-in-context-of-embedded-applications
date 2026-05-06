@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 
+volatile uint32_t benchmark_result = 0;
 
 
 // 1. Struct representing the state of the controller
@@ -84,9 +85,11 @@ void pid(void)
 
 
     }
+    volatile float  test = current_sensor_value;
+    benchmark_result = (uint32_t)control_signal; // force compiler to execute the function
+
 }
 
-volatile uint32_t benchmark_result = 0;
 
 int main()
 {

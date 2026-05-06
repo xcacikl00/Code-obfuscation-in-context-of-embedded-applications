@@ -14,13 +14,6 @@ using namespace llvm;
 
 namespace
 {
-    FunctionCallee getPrintf(Module *M)
-    {
-        LLVMContext &Ctx = M->getContext();
-        PointerType *PtrTy = PointerType::getUnqual(Type::getInt8Ty(Ctx));
-        FunctionType *FTy = FunctionType::get(Type::getInt32Ty(Ctx), {PtrTy}, true);
-        return M->getOrInsertFunction("printf", FTy);
-    }
 
     Value *injectGlobalUpdate(Function &F)
     {
@@ -139,7 +132,7 @@ PreservedAnalyses Bogus::run(Function &F, FunctionAnalysisManager &AM)
     // mix the seed with the function hash to ensure different functions
     // get different obfuscation patterns even with the same global seed.
     std::mt19937 engine(Seed ^ F.getGUID());
-    std::bernoulli_distribution dist(0.3); // 30% probability
+    std::bernoulli_distribution dist(0.75); // 50% probability
 
     Value *predicate_global = nullptr;
 

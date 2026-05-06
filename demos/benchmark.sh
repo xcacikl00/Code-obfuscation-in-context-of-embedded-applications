@@ -9,9 +9,10 @@ DEMOS=(
     "FFT|build/demo_fft/FFT.elf"
     "AES|build/demo_aes/AES.elf"
 )
+CURRENT_PLUGIN=$(grep "PLUGIN_PATH:" build/CMakeCache.txt | cut -d'=' -f2)
+echo "Path: $CURRENT_PLUGIN"
 
 echo "Target Device: STM32F411 (Black Pill)" | tee -a $LOG_FILE
-echo "------------------------------------------------" | tee -a $LOG_FILE
 
 for ENTRY in "${DEMOS[@]}"; do
     NAME="${ENTRY%%|*}"

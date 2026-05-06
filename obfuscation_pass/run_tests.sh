@@ -10,6 +10,7 @@ STATE_FILE="$BUILD/.last_cmake_state"
 export OBF_FLATTEN=${OBF_FLATTEN:-1}
 export OBF_BOGUS=${OBF_BOGUS:-1}
 export OBF_SUBST=${OBF_SUBST:-1}
+export OBF_DEBUG=1
 
 # build the plugin first
 cmake -S "$SCRIPT_DIR" -B "$SCRIPT_DIR/build"
@@ -34,4 +35,4 @@ fi
 
 make -C "$BUILD/SingleSource/UnitTests" -B -j$(nproc) 
 
-lit -v "$BUILD/SingleSource/UnitTests" &>  log.txt
+lit -v "$BUILD/SingleSource/UnitTests" | tee -a  log.txt

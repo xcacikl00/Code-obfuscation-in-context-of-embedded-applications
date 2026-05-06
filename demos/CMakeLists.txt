@@ -8,10 +8,13 @@ find_program(CLANGXX_PATH clang++ REQUIRED)
 set(CMAKE_C_COMPILER ${CLANG_PATH})
 set(CMAKE_CXX_COMPILER ${CLANGXX_PATH})
 project(Demos)
+# export LLVM_OBF_SCALAROPTIMIZERLATE_PASSES="flattening, bogus, substitution, split-basic-blocks"
 
 # paths
 set(SYSROOT "/usr/lib/arm-none-eabi")
 set(GCC_LIB_PATH "/usr/lib/gcc/arm-none-eabi/13.2.1/thumb/v7e-m+fp/hard")
+# set(PLUGIN_PATH "/home/gammut/obfuscator-llvm/build/libLLVMObfuscator.so")
+
 set(PLUGIN_PATH "${CMAKE_SOURCE_DIR}/../obfuscation_pass/build/libObfuscator.so")
 set(SHARED_DIR "${CMAKE_SOURCE_DIR}/shared")
 
@@ -27,6 +30,7 @@ set(FLAGS
     "-mfloat-abi=hard"
     "-mfpu=fpv4-sp-d16"
     "-fpass-plugin=${PLUGIN_PATH}"
+    "-O1"
 )
 
 # convert list to string for compiler/linker
@@ -35,7 +39,7 @@ string(REPLACE ";" " " FLAGS_STR "${FLAGS}")
 
 
 set(CMAKE_C_FLAGS "${FLAGS_STR}" CACHE STRING "" FORCE)
-set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=lld -L${GCC_LIB_PATH} -L/usr/lib/arm-none-eabi/lib/thumb/v7e-m+fp/hard -lm -lgcc -lnosys -Wl,--gc-sections" CACHE STRING "" FORCE)
+set(CMAKE_EXE_LINKER_FLAGS " -fuse-ld=lld -L${GCC_LIB_PATH} -L/usr/lib/arm-none-eabi/lib/thumb/v7e-m+fp/hard -lm -lgcc -lnosys -Wl,--gc-sections" CACHE STRING "" FORCE)
 
 
 # set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=lld -L${GCC_LIB_PATH} -lgcc -lnosys -Wl,--strip-all -Wl,--gc-sections" CACHE STRING "" FORCE)
