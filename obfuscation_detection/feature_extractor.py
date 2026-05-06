@@ -9,15 +9,51 @@ import collections
 import angr
 from tqdm import tqdm
 import re
-from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score, StratifiedKFold
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKFold
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report
 import xgboost as xgb
 import os
-
+import joblib
+import sys
 
 OUTPUT_CLEAN = "./dataset/clean"
 OUTPUT_OBFUSCATED = "./dataset/obfuscated"
+
+def predict_obfuscation(elf_path, rf_path= "rf_obfuscation_model.joblib", xgb_path = "xgb_obfuscation_model.joblib", scaler_path="scaler.joblib", vectorizer_path="vectorizer.joblib"):
+    rf_model = joblib.load(rf_path)
+    xgb_model = joblib.load(xgb_path)
+    scaler = joblib.load(scaler_path)
+    vectorizer = joblib.load(vectorizer_path)
+
+    # extract raw features
+    entropy = calculate_text_section_entropy(elf_path)
+    bin_mnemonics = get_mnemonics(elf_path)
+    instruction_entropy = calculate_instruction_entropy(bin_mnemonics)
+    graph_features = get_graph_features(elf_path)
+
+    if graph_features[0] == 0:
+        return None
+
+
+    ngram_matrix = vectorizer.transform([bin_mnemonics]).toarray()
+    
+    # build dense features
+    dense_features = [entropy, instruction_entropy] + graph_features
+    dense_matrix = np.array([dense_features])
+
+    # combine and scale
+    final_vector = np.hstack((ngram_matrix, dense_matrix))
+    scaled_vector = scaler.transform(final_vector)
+
+    # predict
+    rf_pred = rf_model.predict(scaled_vector)[0]
+    xgb_pred = xgb_model.predict(scaled_vector)[0]
+
+    return {
+        "rf_prediction": "obfuscated" if rf_pred == 1 else "clean",
+        "xgb_prediction": "obfuscated" if xgb_pred == 1 else "clean"
+    }
 
 def calculate_text_section_entropy(file_path, window_size=256):
     with open(file_path, "rb") as f:
@@ -217,6 +253,11 @@ def extract_features_by_prefix(prefix, output_clean="./dataset/clean", output_ob
 
 if __name__ == "__main__":
     os.chdir(Path(__file__).resolve().parent)
+    
+    if len(sys.argv) == 2:
+        print(predict_obfuscation(sys.argv[1]))
+        exit()
+        
 
 
     VECTOR_FILE = "./final_vector.npz"
@@ -260,6 +301,7 @@ if __name__ == "__main__":
 
         vectorizer = CountVectorizer(ngram_range=(1, 2), max_features=50)
         ngram_matrix = vectorizer.fit_transform(mnemonic_string_arr).toarray()
+        joblib.dump(vectorizer, "./vectorizer.joblib")
         # concatenate and scale
         final_vector = np.hstack((ngram_matrix, dense_feature_matrix))
         
@@ -279,7 +321,7 @@ if __name__ == "__main__":
     print("MODEL TRAINING AND EVALUATION")
 
 
-    # --- partitioning at function level (70% train, 15% val, 15% test) 
+    #  partitioning at function level (70% train, 15% val, 15% test) 
     X_train, X_val, X_test, y_train, y_val, y_test, train_funcs, val_funcs, test_funcs = split_by_source_function(
         binary_paths, final_labels, scaled_features, test_size=0.15, val_size=0.15, seed=42
     )
@@ -315,6 +357,25 @@ if __name__ == "__main__":
         n_jobs=-1, verbose=1, scoring='accuracy'
     )
     rf_grid_search.fit(X_train, y_train)
+    
+    
+    print(f"\nBest Random Forest Parameters: {rf_grid_search.best_params_}")
+    print(f"Best Cross-Validation Score (5-Fold): {rf_grid_search.best_score_:.4f}")
+    
+    #  evaluate on all sets
+    rf_train_score = rf_grid_search.score(X_train, y_train)
+    rf_val_score = rf_grid_search.score(X_val, y_val)
+    rf_test_score = rf_grid_search.score(X_test, y_test)
+    
+    print("\nRF performance:\n")
+    print(f"training accuracy: {rf_train_score:.4f}")
+    print(f"validation accuracy: {rf_val_score:.4f}")
+    print(f"test accuracy: {rf_test_score:.4f}")
+    
+    y_pred_rf = rf_grid_search.predict(X_test)
+    print(f"\n RF report:")
+    print(classification_report(y_test, y_pred_rf, target_names=['Clean', 'Obfuscated']))
+    
 
     xgb_model = xgb.XGBClassifier(
         random_state=42, 
@@ -343,6 +404,10 @@ if __name__ == "__main__":
     y_pred_xgb = xgb_grid_search.predict(X_test)
     print("\nxgboost report:")
     print(classification_report(y_test, y_pred_xgb, target_names=['Clean', 'Obfuscated']))
+    # dump created models 
+    joblib.dump(rf_grid_search.best_estimator_, 'rf_obfuscation_model.joblib')
+    joblib.dump(xgb_grid_search.best_estimator_, 'xgb_obfuscation_model.joblib')
+    joblib.dump(scaler, 'scaler.joblib')
 
     
 

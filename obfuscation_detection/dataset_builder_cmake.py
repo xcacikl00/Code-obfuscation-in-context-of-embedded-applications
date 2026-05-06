@@ -95,7 +95,7 @@ def compile_function(func_name, opt_flag, pass_flag, library_path):
     cmd = COMMON_FLAGS + [opt_flag] + [skeleton_path, "-o", output_path, library_path]
     
     env = os.environ.copy()
-    env["LLVM_OBF_SCALAROPTIMIZERLATE_PASSES"] = pass_flag
+    env["LLVM_OBF_OPTIMIZERLASTEP_PASSES"] = pass_flag
     
     result = subprocess.run(cmd, capture_output=True, text=True, env=env)
     
@@ -164,7 +164,7 @@ def build_library(library_name, opt_flag, pass_flag, source_files, include_flags
         ] + include_flags + [src, "-o", obj_path]
         
         env = os.environ.copy()
-        env["LLVM_OBF_SCALAROPTIMIZERLATE_PASSES"] = pass_flag
+        env["LLVM_OBF_OPTIMIZERLASTEP_PASSES"] = pass_flag
         
         result = subprocess.run(compile_cmd, capture_output=True, text=True, env=env)
         if result.returncode != 0:
