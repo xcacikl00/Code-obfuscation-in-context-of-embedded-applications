@@ -7,7 +7,6 @@
 #include "Flattening.hpp"
 #include "Bogus.hpp"
 #include <cstdlib> // std::getenv
-#include "stdint.h"
 
 using namespace llvm;
 
@@ -21,9 +20,12 @@ static bool getEnvFlag(const char *Name)
 void PassBuilderHook(PassBuilder &PB)
 {
 
-    PB.registerScalarOptimizerLateEPCallback(
-        [](FunctionPassManager &FPM, OptimizationLevel Level)
+    PB.registerOptimizerLastEPCallback( // should be last or phis will get reintroduced into the code
+                                        // in between passes and this can cause issues
+        [](ModulePassManager &MPM, OptimizationLevel Level)
         {
+            FunctionPassManager FPM;
+
             bool doSubst = getEnvFlag("OBF_SUBST");
             bool doFlatten = getEnvFlag("OBF_FLATTEN");
             bool doBogus = getEnvFlag("OBF_BOGUS");
@@ -33,8 +35,7 @@ void PassBuilderHook(PassBuilder &PB)
             char *endPtr;
             if (seed_string)
             {
-                seed = std::strtoull(seed_string,&endPtr,16);
-                
+                seed = std::strtoull(seed_string, &endPtr, 16);
             }
 
             if (doSubst)
@@ -52,7 +53,6 @@ void PassBuilderHook(PassBuilder &PB)
                 {
                     llvm::errs() << "REGISTER: FLATTENING \n";
                 }
-                FPM.addPass(RegToMemPass()); // reg2mem pass could probably be removed
                 FPM.addPass(Flattening());
             }
 
@@ -60,14 +60,16 @@ void PassBuilderHook(PassBuilder &PB)
             {
                 if (debug_print)
                 {
-                    
+
                     llvm::errs() << "REGISTER: BOGUS \n";
-                    llvm::errs() << "USING SEED: "<< format_hex(seed, 16, true) <<"\n";
+                    llvm::errs() << "USING SEED: " << format_hex(seed, 16, true) << "\n";
                 }
 
                 FPM.addPass(RegToMemPass());
                 FPM.addPass(Bogus(seed));
             }
+
+            MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
         });
 
     PB.registerPipelineParsingCallback( // for opt
@@ -81,13 +83,11 @@ void PassBuilderHook(PassBuilder &PB)
             }
             if (Name == "bogus")
             {
-                FPM.addPass(RegToMemPass());
                 FPM.addPass(Bogus(42));
                 return true;
             }
             if (Name == "subst")
             {
-                FPM.addPass(RegToMemPass());
                 FPM.addPass(InstructionSubstitution());
                 return true;
             }

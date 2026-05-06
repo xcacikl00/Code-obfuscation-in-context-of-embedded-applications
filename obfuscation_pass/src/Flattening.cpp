@@ -112,34 +112,6 @@ static bool flattenFunction(Function &F, uint32_t X, uint32_t Y)
         }
     }
 
-    // running the lower switch pass causes dominance issues,
-    // demote any such cases
-    for (BasicBlock &BB : F)
-    {
-        SmallVector<Instruction *, 16> ToDemote;
-        for (Instruction &I : BB)
-        {
-            // Skip Phis (already handled) and allocas
-            if (isa<PHINode>(I) || isa<AllocaInst>(I) || I.isTerminator())
-                continue;
-
-            for (User *U : I.users())
-            {
-                if (auto *UI = dyn_cast<Instruction>(U))
-                {
-                    if (UI->getParent() != &BB)
-                    {
-                        ToDemote.push_back(&I);
-                        break;
-                    }
-                }
-            }
-        }
-        for (Instruction *I : ToDemote)
-        {
-            DemoteRegToStack(*I);
-        }
-    }
 
     BasicBlock *EntryBlock = &F.getEntryBlock();
     SmallVector<BasicBlock *, 20> FlattedBBs;
@@ -262,6 +234,8 @@ static bool flattenFunction(Function &F, uint32_t X, uint32_t Y)
     return true;
 }
 
+    #include "llvm/Transforms/Scalar/Reg2Mem.h"
+    #include "llvm/Transforms/Utils/LowerSwitch.h"
 PreservedAnalyses Flattening::run(Function &F, FunctionAnalysisManager &AM)
 {
     if (F.isDeclaration() || F.isIntrinsic())
@@ -271,15 +245,17 @@ PreservedAnalyses Flattening::run(Function &F, FunctionAnalysisManager &AM)
     const uint32_t Y = randRange(10, 254);
     //  llvm::errs() << "flattening is running  on: " << F.getName() << "\n";
 
-    LowerSwitchPass LSP;
-    LSP.run(F, AM);
+    LowerSwitchPass Lower;
+    Lower.run(F, AM);
+    AM.invalidate(F, PreservedAnalyses::none());
+    RegToMemPass R2M;
+    R2M.run(F, AM);
+    AM.invalidate(F, PreservedAnalyses::none());
 
     bool Changed = flattenFunction(F, X, Y);
-    Changed = true;
-    if (verifyFunction(F, &errs()))
-    {
-        report_fatal_error("Obfuscation pass produced invalid IR!");
-    }
 
+    return PreservedAnalyses::none();
     return Changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
 }
+
+
