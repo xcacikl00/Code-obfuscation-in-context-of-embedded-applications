@@ -1,8 +1,11 @@
+#!/bin/bash
+
 OBFS=( "OBF_BOGUS" "OBF_SUBST" "OBF_FLATTEN")
 LOG_FILE="benchmark_results.log"
 export OBF_SEED="ABCDBCDAABCDBCDA"
 
-
+THESIS_PLUGIN="$(realpath ../obfuscation_pass/build/libObfuscator.so)"
+VALIDATION_PLUGIN="$(realpath ../obfuscation_pass/obfuscator-llvm/build/libLLVMObfuscator.so)"
 
 declare -A PASS_MAP
 PASS_MAP["OBF_SUBST"]="substitution"
@@ -11,48 +14,82 @@ PASS_MAP["OBF_FLATTEN"]="flattening"
 
 echo "Target Device: STM32F411 (Black Pill)" | tee -a $LOG_FILE
 
-
-
 run_bench() {
     local label=$1
-    echo "Benchmarking with $1" | tee -a $LOG_FILE
+    local plugin_path=$2
+    echo "Benchmarking with $label" | tee -a $LOG_FILE
+    echo "Using Obfuscator Plugin: $(basename "$plugin_path")" | tee -a $LOG_FILE
 
-
+    mkdir -p build
     cd build
+    cmake .. -DPLUGIN_PATH="$plugin_path"
     make clean
     make -j$(nproc)
     cd ..
-    
-    bash -x ./benchmark.sh 
+
+    bash ./benchmark.sh 
 }
 
 export OBF_DEBUG=1
 export OBF_SUBST=0
 export OBF_BOGUS=0
 export OBF_FLATTEN=0
+export OBF_EARLY=0
 export LLVM_OBF_SCALAROPTIMIZERLATE_PASSES=""
+export LLVM_OBF_OPTIMIZERLASTEP_PASSES=""
 
-run_bench "NO_OBFS"
+
+run_for_plugin() {
+CURRENT_PLUGIN=$1
+run_bench "NO_OBFS" "$CURRENT_PLUGIN"
+
+# resgister at OptimizerLastEp
+echo "=== REGISTERING AT OptimizerLastEp ===" | tee -a $LOG_FILE
+export OBF_EARLY=0
 
 
 for target in "${OBFS[@]}"; do
-    export OBF_SUBST=0
-    export OBF_BOGUS=0
-    export OBF_FLATTEN=0
-    export OBF_DEBUG=1
-    
+    export OBF_SUBST=0; export OBF_BOGUS=0; export OBF_FLATTEN=0
     export "$target"=1
-    export LLVM_OBF_SCALAROPTIMIZERLATE_PASSES="${PASS_MAP[$target]}"
-    
-    run_bench "$target"
+    export LLVM_OBF_OPTIMIZERLASTEP_PASSES="${PASS_MAP[$target]}" 
+    export LLVM_OBF_SCALAROPTIMIZERLATE_PASSES=""
+    run_bench "$target" "$CURRENT_PLUGIN"
 done
 
-export OBF_SUBST=1
-export OBF_BOGUS=1
-export OBF_FLATTEN=1
-export LLVM_OBF_SCALAROPTIMIZERLATE_PASSES="flattening, bogus, substitution"
+export OBF_SUBST=1; export OBF_BOGUS=1; export OBF_FLATTEN=1;
+export LLVM_OBF_OPTIMIZERLASTEP_PASSES="flattening,bogus,substitution"
+run_bench "ALL_OBFS" "$CURRENT_PLUGIN"
+echo "\n"
 
-run_bench "ALL_OBFS"
+# register at ScalarOptimizerLate
+echo "=== REGISTERING AT ScalarOptimizerLate ===" | tee -a $LOG_FILE
+export OBF_EARLY=1
+
+for target in "${OBFS[@]}"; do
+    export OBF_SUBST=0; export OBF_BOGUS=0; export OBF_FLATTEN=0
+    export "$target"=1
+    export LLVM_OBF_SCALAROPTIMIZERLATE_PASSES="${PASS_MAP[$target]}" 
+    export LLVM_OBF_OPTIMIZERLASTEP_PASSES=""
+    run_bench "$target" "$CURRENT_PLUGIN"
+done
+
+export OBF_SUBST=1; export OBF_BOGUS=1; export OBF_FLATTEN=1; 
+export LLVM_OBF_OPTIMIZERLASTEP_PASSES="flattening,bogus,substitution"
+run_bench "ALL_OBFS" "$CURRENT_PLUGIN"
+
+}
+
+run_for_plugin $THESIS_PLUGIN
+
+export OBF_DEBUG=1
+export OBF_SUBST=0
+export OBF_BOGUS=0
+export OBF_FLATTEN=0
+export OBF_EARLY=0
+export LLVM_OBF_SCALAROPTIMIZERLATE_PASSES=""
+export LLVM_OBF_OPTIMIZERLASTEP_PASSES=""
+
+run_for_plugin $VALIDATION_PLUGIN
 
 
 echo "All benchmarks completed."

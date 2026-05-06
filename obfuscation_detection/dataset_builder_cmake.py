@@ -22,6 +22,7 @@ C_TEMPLATE = """
     }}
     """
     
+PLUIGN_PATH = "../obfuscation_pass/obfuscator-llvm/build/libLLVMObfuscator.so"
 
 COMMON_FLAGS = [
     "clang",
@@ -38,7 +39,8 @@ COMMON_FLAGS = [
     "-lgcc",
     "-lnosys",
     "-L/usr/lib/gcc/arm-none-eabi/13.2.1/thumb/v7e-m+fp/hard",
-    "-fpass-plugin=/home/gammut/obfuscator-llvm/build/libLLVMObfuscator.so", # test
+    f"-fpass-plugin={PLUIGN_PATH}" # test
+    
     
     
 
@@ -156,7 +158,7 @@ def build_library(library_name, opt_flag, pass_flag, source_files, include_flags
             "-ffunction-sections",
             "-fdata-sections",
             "-DARM_MATH_DSP",
-            "-fpass-plugin=/home/gammut/obfuscator-llvm/build/libLLVMObfuscator.so", # test
+            f"-fpass-plugin={PLUIGN_PATH}", # test
             "-L/usr/lib/gcc/arm-none-eabi/13.2.1/thumb/v7e-m+fp/hard"
 
         ] + include_flags + [src, "-o", obj_path]

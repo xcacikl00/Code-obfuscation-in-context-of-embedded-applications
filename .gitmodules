@@ -32,3 +32,6 @@
 [submodule "demos/demo_fft/CMSIS_6"]
 	path = demos/demo_fft/CMSIS_6
 	url = https://github.com/ARM-software/CMSIS_6
+[submodule "obfuscation_pass/obfuscator-llvm"]
+	path = obfuscation_pass/obfuscator-llvm
+	url = https://github.com/eshard/obfuscator-llvm
