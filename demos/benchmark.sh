@@ -33,6 +33,11 @@ for ENTRY in "${DEMOS[@]}"; do
     
     ADDR="0x$RAW_ADDR"
 
+    SIZE_INFO=$(arm-none-eabi-size "$ELF_PATH" | tail -n 1)
+    TEXT_SIZE=$(echo "$SIZE_INFO" | awk '{print $1}')
+    DATA_SIZE=$(echo "$SIZE_INFO" | awk '{print $2}')
+    SIZE_BYTES=$((TEXT_SIZE + DATA_SIZE))
+
     #  flash the binary
     echo "  Flashing..."
     "$PROGRAMMER" -c port=SWD -w "$ELF_PATH" -v -rst > /dev/null 2>&1
@@ -50,7 +55,8 @@ for ENTRY in "${DEMOS[@]}"; do
         echo "  Result: [FAILED TO READ]" | tee -a $LOG_FILE
     else
         DEC_VAL=$((16#$HEX_VAL))
-        printf "%-10s | Addr: %s | Hex: 0x%-8s | Dec: %d\n" "$NAME" "$ADDR" "$HEX_VAL" "$DEC_VAL" | tee -a $LOG_FILE
+        printf "%-10s | Addr: %s | Hex: 0x%-8s | Dec: %-10d | Size: %d bytes\n" \
+                    "$NAME" "$ADDR" "$HEX_VAL" "$DEC_VAL" "$SIZE_BYTES" | tee -a $LOG_FILE    
     fi
 done
 

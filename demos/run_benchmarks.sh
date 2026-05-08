@@ -3,7 +3,7 @@
 OBFS=( "OBF_BOGUS" "OBF_SUBST" "OBF_FLATTEN")
 LOG_FILE="benchmark_results.log"
 export OBF_SEED="ABCDBCDAABCDBCDA"
-
+export LLVM_OBF_SEED="0xA04252B187478C00A40BC6D81D1A8A52"
 THESIS_PLUGIN="$(realpath ../obfuscation_pass/build/libObfuscator.so)"
 VALIDATION_PLUGIN="$(realpath ../obfuscation_pass/obfuscator-llvm/build/libLLVMObfuscator.so)"
 
